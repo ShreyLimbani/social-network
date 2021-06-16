@@ -1,0 +1,184 @@
+{% extends "network/layout.html" %}
+
+{% block body %}
+    
+    <div class="container">
+        <div class="row">
+            <div class="col">
+                <div class="row justify-content-center"style="padding: 10px;margin-left: -15;">
+                    <h2>All Posts</h2>
+                </div>
+                {% if posts|length == 0%}
+                <div class="row justify-content-center">
+                    <div class='col-8' style="text-align:center"><h3>No posts yet!!!</h3></div>
+                </div>
+                {% else %}
+                <div class="row justify-content-center" id="posts_div">
+                    {% for post in posts %}
+                    <div class="card post col-8" style="margin:3px; padding:1px">
+                        <div class="card-header post-header">
+                            <div class="row">
+                                <div class="col-10">
+                                    <h5 class="card-title"><a href="{% url 'profile' post.poster.pk %}">{{post.poster.get_full_name}} <span id="username">- @{{post.poster.username}}<span></a></h5>
+                                </div>
+                                {% if post.poster == user %}
+                                <div class="col">
+                                    <a href="{% url 'edit_post' post.pk %}" class="card-link">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="card-body post-body">
+                            <blockquote class="blockquote">
+                                <p class="card-text">{{ post.content }}</p>
+                            </blockquote>
+                        </div>
+                        <div class="card-footer text-muted post-footer">
+                            <div class="row">
+                                <div class="col-2">
+                                    <a id="{{post.pk}}" onclick="Like(this)" class="card-link">
+                                    {% if user in post.likes.all %}
+                                        <i class="far fa-heart" hidden></i>
+                                        <i class="fas fa-heart" style="color:red;"></i>
+                                        <span>{{ post.likes.all|length }}</span>
+                                    {% else %}
+                                        <i class="far fa-heart"></i>
+                                        <i class="fas fa-heart" style="color:red;" hidden></i>
+                                        <span>{{ post.likes.all|length }}</span>
+                                    {% endif %}
+                                    </a>
+                                </div>
+                                <div class="col-6 mt-2">
+                                    <h6 class="card-subtitle mb-2 text-muted">{{ post.timestamp }}</h6>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <nav class="mt-2">
+                    <ul class="pagination justify-content-center">
+                    {% if posts.has_previous %}
+                            <li class="page-item">
+                                <a class='page-link' href="?page=1">&laquo; first</a>
+                            </li>
+                            <li class="page-item">
+                                <a class='page-link' href="?page={{ posts.previous_page_number }}">previous</a>
+                            </li>
+                        {% endif %}
+                        <li class="page-item active"><a class='page-link' >Page {{ posts.number }} of {{ posts.paginator.num_pages }}</a></li>
+                        {% if posts.has_next %}
+                            <li class="page-item">
+                                <a class='page-link' href="?page={{ posts.next_page_number }}">next</a>
+                            </li>
+                            <li class="page-item">
+                                <a class='page-link'href="?page={{ posts.paginator.num_pages }}">last &raquo;</a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {%endif%}
+            </div>
+            {% if user.is_authenticated %}
+            <div class="col-4">
+                <div class="row justify-content-center"style="padding: 10px;margin-left: -15;">
+                    <h2>New Post</h2>
+                </div>
+                <div class="card post col-12" style="margin:3px; padding:1px">
+                    <form action="{% url 'add_post' %}" method="POST">{% csrf_token %}
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label for="newPost">Enter text</label>
+                            <textarea class="form-control" id="newPost" name="content" rows="6"></textarea>
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        <div class='row'>
+                            <div class='col-9'></div>
+                            <div class="col-3" style="text=align:right;">
+                                <button type="submit" class="btn btn-info">Post</submit>
+                            </div>
+                        </div>
+                    </div>
+                    </form>
+                </div>
+            </div>
+            {%endif%}
+        </div>
+    </div>
+
+    <script>
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    // Does this cookie string begin with the name we want?
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        function Like(o){
+            post_id = o.id;
+            if (o.children[0].hidden == false){
+                fetch("/like", {
+                    method: "post",
+                    credentials: "same-origin",
+                    headers: {
+                        "X-CSRFToken": getCookie("csrftoken"),
+                        "Accept": "application/json",
+                        "Content-Type": "application/json"
+                    },
+                    body: `post_id=${post_id}`
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if(data.message == "Post Liked"){
+                        o.children[0].hidden = true;
+                        o.children[1].hidden = false;
+                        o.children[2].innerHTML = data.count;
+                    }
+                    else{
+                        window.location.href = window.location.origin;
+                    }
+                })
+                // Catch any errors and log them to the console
+                .catch(error => {
+                    console.log('Error:', error);
+                });
+            }
+            else{
+                fetch("/removelike", {
+                    method: "post",
+                    credentials: "same-origin",
+                    headers: {
+                        "X-CSRFToken": getCookie("csrftoken"),
+                        "Accept": "application/json",
+                        "Content-Type": "application/json"
+                    },
+                    body: `post_id=${post_id}`
+                })
+                .then(response => response.json())
+                .then(data => {
+                    o.children[0].hidden = false;
+                    o.children[1].hidden = true;
+                    o.children[2].innerHTML = data.count;
+                })
+                // Catch any errors and log them to the console
+                .catch(error => {
+                    console.log('Error:', error);
+                });
+            }
+            return false;
+        }
+    </script>
+
+{% endblock %}
